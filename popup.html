@@ -91,6 +91,25 @@
       style="display: none"
     />
 
+    <!-- Tab Picker dialog -->
+    <div class="dialog-overlay" id="tabPickerDialog" hidden>
+      <div class="dialog tab-picker-dialog">
+        <h3 class="dialog-title">Choose Tabs to Save</h3>
+        <div class="tab-picker-controls">
+          <button class="text-btn" id="deselectAllTabsBtn">Deselect All</button>
+          <button class="text-btn" id="selectAllTabsBtn">Select All</button>
+        </div>
+        <div class="tab-picker-list" id="tabPickerList"></div>
+        <div class="dialog-actions">
+          <button class="text-btn" id="tabPickerCancelBtn">Cancel</button>
+          <button class="filled-btn" id="tabPickerSaveBtn">
+            <span class="material-icons-round">bookmark_add</span>
+            Save Group
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Rename dialog -->
     <div class="dialog-overlay" id="renameDialog" hidden>
       <div class="dialog">

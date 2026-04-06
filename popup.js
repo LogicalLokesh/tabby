@@ -39,6 +39,7 @@ let groups = [];          // { id, name, date, tabs: [{title, url, favIconUrl}] 
 let renameTargetId = null;
 let deleteTargetId = null;
 let toastTimer = null;
+let pickerTabs = [];      // tabs waiting in the tab-picker dialog
 
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -91,13 +92,13 @@ async function saveGroups() {
   await chrome.storage.local.set({ [STORAGE_KEY]: groups });
 }
 
-// ── Save Current Tabs ─────────────────────────────────────────
+// ── Save Current Tabs — opens tab picker ──────────────────────
 saveTabsBtn.addEventListener('click', async () => {
   const tabs = await chrome.tabs.query({ currentWindow: true });
   if (!tabs.length) { showToast('No tabs to save!'); return; }
 
   // Filter out internal browser URLs that can't be reopened
-  const savedTabs = tabs
+  pickerTabs = tabs
     .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('chrome-extension://') && !t.url.startsWith('about:') && !t.url.startsWith('edge://'))
     .map(t => ({
       title: t.title || t.url,
@@ -105,26 +106,15 @@ saveTabsBtn.addEventListener('click', async () => {
       favIconUrl: t.favIconUrl || ''
     }));
 
-  if (!savedTabs.length) { showToast('No saveable tabs (browser pages excluded)'); return; }
-
-  const now = new Date();
-  const name = `Session – ${now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
-
-  const group = {
-    id: `g_${Date.now()}`,
-    name,
-    date: now.toISOString(),
-    tabs: savedTabs
-  };
-
-  groups.unshift(group);
-  await saveGroups();
-  renderGroups();
-  showToast(`Saved ${savedTabs.length} tab${savedTabs.length !== 1 ? 's' : ''}`);
+  if (!pickerTabs.length) { showToast('No saveable tabs (browser pages excluded)'); return; }
+  openTabPickerDialog();
 });
 
 // ── Render ────────────────────────────────────────────────────
 function renderGroups() {
+  // Preserve expanded states across renders
+  const expandedIds = new Set([...groupsList.querySelectorAll('.group-card.expanded')].map(c => c.dataset.id));
+
   // Clear existing cards (keep emptyState)
   [...groupsList.querySelectorAll('.group-card')].forEach(el => el.remove());
 
@@ -138,6 +128,10 @@ function renderGroups() {
 
   groups.forEach((group, idx) => {
     const card = buildGroupCard(group, idx);
+    if (expandedIds.has(group.id)) {
+      card.classList.add('expanded');
+      card.style.animation = 'none'; // Avoid slide-up re-animation if already open
+    }
     groupsList.appendChild(card);
   });
 }
@@ -154,7 +148,7 @@ function buildGroupCard(group, idx) {
   });
 
   // Build tab items HTML (no inline event handlers — MV3 CSP compliant)
-  const tabItemsHTML = group.tabs.map(tab => {
+  const tabItemsHTML = group.tabs.map((tab, tabIdx) => {
     const faviconHTML = tab.favIconUrl
       ? `<img class="tab-favicon" src="${escapeAttr(tab.favIconUrl)}" alt="">`
       : '';
@@ -168,6 +162,9 @@ function buildGroupCard(group, idx) {
           <div class="tab-title">${escapeHtml(tab.title)}</div>
           <div class="tab-url">${escapeHtml(tab.url)}</div>
         </div>
+        <button class="tab-remove-btn icon-btn" data-tab-idx="${tabIdx}" title="Remove tab">
+          <span class="material-icons-round">close</span>
+        </button>
       </div>`;
   }).join('');
 
@@ -209,6 +206,46 @@ function buildGroupCard(group, idx) {
     img.addEventListener('error', () => {
       img.style.display = 'none';
       img.nextElementSibling.style.display = 'flex';
+    });
+  });
+
+  // Tab remove buttons
+  card.querySelectorAll('.tab-remove-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const tabIdx = parseInt(btn.dataset.tabIdx, 10);
+      const g = groups.find(g => g.id === group.id);
+      if (!g) return;
+      g.tabs.splice(tabIdx, 1);
+      
+      if (g.tabs.length === 0) {
+        groups = groups.filter(x => x.id !== group.id);
+        showToast('Group deleted — last tab removed');
+        await saveGroups();
+        renderGroups();
+      } else {
+        showToast('Tab removed');
+        await saveGroups();
+        
+        // Remove the DOM element in-place to avoid visually collapsing/re-rendering
+        const tabEl = btn.closest('.tab-item');
+        if (tabEl) tabEl.remove();
+        
+        // Update tab count meta text
+        const metaEl = card.querySelector('.group-meta');
+        if (metaEl) {
+          const dtStr = new Date(g.date).toLocaleString(undefined, {
+            month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+          });
+          metaEl.textContent = `${g.tabs.length} tab${g.tabs.length !== 1 ? 's' : ''} · ${dtStr}`;
+        }
+        
+        // Ensure remaining buttons have the correct index for subsequent clicks
+        card.querySelectorAll('.tab-remove-btn').forEach((b, newIdx) => {
+          b.dataset.tabIdx = newIdx;
+        });
+      }
     });
   });
 
@@ -306,6 +343,108 @@ deleteConfirmBtn.addEventListener('click', async () => {
       deleteTargetId = null;
     }
   });
+});
+
+// ── Tab Picker Dialog ─────────────────────────────────────────
+const tabPickerDialog    = document.getElementById('tabPickerDialog');
+const tabPickerList      = document.getElementById('tabPickerList');
+const tabPickerCancelBtn = document.getElementById('tabPickerCancelBtn');
+const tabPickerSaveBtn   = document.getElementById('tabPickerSaveBtn');
+const selectAllTabsBtn   = document.getElementById('selectAllTabsBtn');
+const deselectAllTabsBtn = document.getElementById('deselectAllTabsBtn');
+
+function openTabPickerDialog() {
+  tabPickerList.innerHTML = '';
+
+  pickerTabs.forEach((tab, i) => {
+    const item = document.createElement('label');
+    item.className = 'tab-picker-item';
+
+    // Checkbox
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'tab-picker-checkbox';
+    checkbox.checked = true;
+    checkbox.dataset.index = i;
+    item.appendChild(checkbox);
+
+    // Favicon
+    const fallback = document.createElement('span');
+    fallback.className = 'tab-favicon-fallback';
+    fallback.style.display = 'none';
+    fallback.innerHTML = '<span class="material-icons-round">language</span>';
+
+    if (tab.favIconUrl) {
+      const img = document.createElement('img');
+      img.className = 'tab-favicon';
+      img.src = tab.favIconUrl;
+      img.alt = '';
+      img.addEventListener('error', () => {
+        img.style.display = 'none';
+        fallback.style.display = 'flex';
+      });
+      item.appendChild(img);
+    } else {
+      fallback.style.display = 'flex';
+    }
+    item.appendChild(fallback);
+
+    // Info
+    const info = document.createElement('div');
+    info.className = 'tab-info';
+    info.innerHTML = `<div class="tab-title">${escapeHtml(tab.title)}</div><div class="tab-url">${escapeHtml(tab.url)}</div>`;
+    item.appendChild(info);
+
+    tabPickerList.appendChild(item);
+  });
+
+  tabPickerDialog.hidden = false;
+}
+
+selectAllTabsBtn.addEventListener('click', () => {
+  tabPickerList.querySelectorAll('.tab-picker-checkbox').forEach(cb => { cb.checked = true; });
+});
+
+deselectAllTabsBtn.addEventListener('click', () => {
+  tabPickerList.querySelectorAll('.tab-picker-checkbox').forEach(cb => { cb.checked = false; });
+});
+
+tabPickerCancelBtn.addEventListener('click', () => {
+  tabPickerDialog.hidden = true;
+  pickerTabs = [];
+});
+
+tabPickerDialog.addEventListener('click', (e) => {
+  if (e.target === tabPickerDialog) {
+    tabPickerDialog.hidden = true;
+    pickerTabs = [];
+  }
+});
+
+tabPickerSaveBtn.addEventListener('click', async () => {
+  const checkboxes = [...tabPickerList.querySelectorAll('.tab-picker-checkbox')];
+  const selectedTabs = checkboxes
+    .filter(cb => cb.checked)
+    .map(cb => pickerTabs[parseInt(cb.dataset.index, 10)]);
+
+  if (!selectedTabs.length) { showToast('Select at least one tab'); return; }
+
+  const now = new Date();
+  const name = `Session – ${now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+
+  const group = {
+    id: `g_${Date.now()}`,
+    name,
+    date: now.toISOString(),
+    tabs: selectedTabs
+  };
+
+  groups.unshift(group);
+  await saveGroups();
+  renderGroups();
+  tabPickerDialog.hidden = true;
+  pickerTabs = [];
+  showToast(`Saved ${selectedTabs.length} tab${selectedTabs.length !== 1 ? 's' : ''}`);
 });
 
 // ── Export ────────────────────────────────────────────────────
