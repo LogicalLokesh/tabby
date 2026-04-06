@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tabby</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Text:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="app-bar">
+      <div class="app-bar-leading">
+        <img src="icons/icon48.png" class="app-logo" alt="Tabby" />
+        <span class="app-title">Tabby</span>
+      </div>
+      <div class="app-bar-actions">
+        <button class="icon-btn" id="themeBtn" title="Theme: System">
+          <span class="material-icons-round" id="themeIcon"
+            >brightness_auto</span
+          >
+        </button>
+        <button class="icon-btn" id="importBtn" title="Import groups">
+          <span class="material-icons-round">upload_file</span>
+        </button>
+        <button class="icon-btn" id="exportBtn" title="Export groups">
+          <span class="material-icons-round">download</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Save current tabs CTA -->
+    <section class="save-section">
+      <div class="save-card">
+        <div class="save-card-content">
+          <span class="material-icons-round save-icon">tab</span>
+          <div>
+            <p class="save-title">Save current tabs</p>
+            <p class="save-subtitle" id="tabCount">Loading…</p>
+          </div>
+        </div>
+        <button class="filled-btn" id="saveTabsBtn">
+          <span class="material-icons-round">bookmark_add</span>
+          Save
+        </button>
+      </div>
+    </section>
+
+    <!-- Groups list -->
+    <section class="groups-section">
+      <div class="groups-header">
+        <h2 class="section-label">Saved Groups</h2>
+        <span class="group-count-chip" id="groupCountChip">0</span>
+      </div>
+      <div id="groupsList" class="groups-list">
+        <div class="empty-state" id="emptyState">
+          <span class="material-icons-round empty-icon">bookmarks</span>
+          <p>No saved groups yet.</p>
+          <p class="empty-hint">Save your open tabs to get started.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span
+        >Tabby <span id="appVersion" class="footer-version"></span> ©
+        <a
+          href="https://github.com/LogicalLokesh"
+          target="_blank"
+          class="footer-link"
+          >LogicalLokesh</a
+        ></span
+      >
+    </footer>
+
+    <!-- Hidden file input for import -->
+    <input
+      type="file"
+      id="importFileInput"
+      accept=".json"
+      style="display: none"
+    />
+
+    <!-- Rename dialog -->
+    <div class="dialog-overlay" id="renameDialog" hidden>
+      <div class="dialog">
+        <h3 class="dialog-title">Rename Group</h3>
+        <div class="text-field">
+          <input
+            type="text"
+            id="renameInput"
+            class="text-field-input"
+            placeholder="Group name"
+          />
+          <label class="text-field-label">Group name</label>
+        </div>
+        <div class="dialog-actions">
+          <button class="text-btn" id="renameCancelBtn">Cancel</button>
+          <button class="filled-btn" id="renameConfirmBtn">Rename</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete confirm dialog -->
+    <div class="dialog-overlay" id="deleteDialog" hidden>
+      <div class="dialog">
+        <span class="material-icons-round dialog-icon warn"
+          >delete_forever</span
+        >
+        <h3 class="dialog-title">Delete Group?</h3>
+        <p class="dialog-body">
+          This will permanently remove the group and all its saved tabs.
+        </p>
+        <div class="dialog-actions">
+          <button class="text-btn" id="deleteCancelBtn">Cancel</button>
+          <button class="filled-btn danger" id="deleteConfirmBtn">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
