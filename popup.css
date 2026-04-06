@@ -821,8 +821,11 @@ body {
   width: 360px;
   padding: 20px;
   gap: 12px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-
 .tab-picker-controls {
   display: flex;
   justify-content: flex-end;
@@ -834,11 +837,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--md-outline-variant);
   border-radius: var(--radius-md);
   padding: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .tab-picker-item {
