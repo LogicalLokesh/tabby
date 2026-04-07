@@ -37,17 +37,7 @@ Tabby is a lightweight Chrome extension that lets you snapshot your open tabs in
 
 ---
 
-## Releases
-
-Tabby uses **semantic versioning** (`MAJOR.MINOR.PATCH`):
-
-| Part | Bump when… |
-| ---- | --- |
-| `PATCH` | Bug fixes, minor tweaks (e.g. `1.0.1`) |
-| `MINOR` | New features, backward-compatible (e.g. `1.1.0`) |
-| `MAJOR` | Breaking changes or major redesign (e.g. `2.0.0`) |
-
-Releases are **automatic** — pushing a version tag triggers the GitHub Actions workflow, which packages the extension and publishes the release with the `.zip` attached.
+## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history of changes.
 
